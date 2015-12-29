@@ -5,6 +5,7 @@ import webpack from 'webpack';
 import webpackMiddleware from 'webpack-dev-middleware';
 import webpackHotMiddleware from 'webpack-hot-middleware';
 import config from './webpack.config.js';
+import bodyParser from 'body-parser';
 //import dotenv from 'dotenv';
 //dotenv.load();
 import routes from './server/routes.js';
@@ -14,6 +15,12 @@ console.log("getting here!!!");
 const isDeveloping = process.env.NODE_ENV !== 'production';
 const port = isDeveloping ? 3000 : process.env.PORT;
 const app = express();
+
+// parse application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: false }));
+
+// parse application/json
+app.use(bodyParser.json());
 
 // handle incoming / outgoing messages
 
