@@ -6,9 +6,9 @@ import webpackMiddleware from 'webpack-dev-middleware';
 import webpackHotMiddleware from 'webpack-hot-middleware';
 import config from './webpack.config.js';
 import bodyParser from 'body-parser';
-//import dotenv from 'dotenv';
-//dotenv.load();
 import routes from './server/routes.js';
+
+// this app is running on Christian Alfoni's Webpack-express-boilerplate
 
 console.log("getting here!!!");
 

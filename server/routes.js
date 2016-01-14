@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import twilio from 'twilio';
 import zendesk from 'node-zendesk';
 import Prom from 'bluebird';
+import path from 'path';
 
 const router = express.Router();
 dotenv.load();
@@ -26,16 +27,64 @@ router.post('/', function(request, response) {
   console.log("is this the from string?", request.body.From);
 
   // Determine if the incoming SMS is associated with an existing user or is a new user
+
+  // Parse the phone, email, and message out of the request body
   let requesterPhone = request.body.From;
   console.log('requester phone number is:', requesterPhone);
   let requesterEmail = requesterPhone.slice(1) + "@relatechat.com";
   console.log('requester email is:', requesterEmail);
   let requesterMessage = request.body.Body;
 
+  // Deal with images if there are any
+  //let requesterMediaUrl0 = request.body.MediaUrl0;
+  //let requesterMediaUrl0 = "/Users/Amit/desktop/Alex.png"
+  //console.log('may or may not be a media URL:', requesterMediaUrl0);
+
+  // let getFilename = (url) => {
+  //     var index;
+  //     for (var i = url.length - 1; i > 0; i--) {
+  //         if (url.charAt(i) === '/') {
+  //             console.log(i);
+  //             index = url.length - i - 1;
+  //             break;
+  //         }
+  //     }
+  //     var filename = url.slice(-index);
+  //     return filename + ".gif";
+  // }
+  //let requesterMediaFilename = getFilename(requesterMediaUrl0);
+  //let requesterMediaFilename = "Alex.png";
+  //console.log('filename of the media URL:', requesterMediaFilename);
+
   // to do that we need to get all users and manually search because API only allows search by id which we don't have (check with Zendesk on this)
   // router.get(process.env.ZENDESK_URI + '/users.json', function(request, response) {
   //
   // });
+
+  // if the request includes an image, upload a file to Zendesk and get back token(s)
+  function uploadAttachmentAsync(requesterMediaUrl0, requesterMediaFilename) {
+    return new Promise(function(resolve, reject){
+         zenclient.attachments.upload(requesterMediaUrl0, {filename: requesterMediaFilename}, function(err, req, data){
+
+            console.log("made it to the upload attachment promise");
+            console.log("attachment returns:", data);
+
+             if (err !== null) {
+               console.log("Error uploading attachment", err);
+               return reject(err)
+             };
+
+             if (!data || data.length === 0) {
+                 console.log("returning null");
+                 resolve(null);
+              } else {
+                 console.log("returning attachment token?");
+                 resolve(data);
+              }
+
+         });
+    });
+  }
 
   // search for the user by their email, which is their phone number @relatechat.com, returns the user or null
   function userSearchAsync(){
@@ -250,6 +299,12 @@ router.post('/', function(request, response) {
 
   // Generator that will synchronously run through the api calls
   Prom.coroutine(function* () {
+    // if there is an image in the request, upload it as an attachment and return a token or array of tokens
+    // if (requesterMediaUrl0) {
+    //   console.log("making it to the if we have a mediaURL");
+    //   let attachments = yield uploadAttachmentAsync(requesterMediaUrl0, requesterMediaFilename);
+    //   console.log("here are the attachments:", attachments);
+    // }
     // search for the incoming SMS sender to see if it's an existing user
     let newUser = yield userSearchAsync();
     console.log("what does the user search async return?", newUser);
@@ -340,11 +395,10 @@ router.get('/', function(request, response) {
     // }
 
     // Testing the search functionality
-           let requesterEmail = "12016159570@relatechat.com";
+           let requesterEmail = `${process.env.CLIENT_NUMBER}@relatechat.com`;
            //let query = `requester:${requesterEmail}+type:ticket`;
            //let query = "type:ticket+status:open";
            //let query = "type:ticket+requester:" + requesterEmail;
-           //let query = "requester:+12016159570@relatechat.com+status:open";
            let query = `type:ticket+requester:${requesterEmail}`;
           //  zenclient.search.query(query, function(err, req, data){
           //     console.log("made it to the alt promisify search for existing user's ticket");
@@ -363,7 +417,7 @@ router.get('/', function(request, response) {
           //      }
           //  });
 
-          //  zenclient.search.requestAll('GET', ['search', '?query=' + query], function(err, req, data) {
+           zenclient.search.requestAll('GET', ['search', '?query=' + query], function(err, req, data) {
              console.log("made it to the alt promisify search for existing user's ticket");
              if (err !== null) {
                console.log("error searching for existing user's ticket in Zendesk", err);
@@ -381,22 +435,5 @@ router.get('/', function(request, response) {
            });
 });
 
-
-// Zendesk Target
-// {
-//   "To": "+12016159570",
-//   "From": "+12013409670",
-//   "Body": "This is a serious test mister"
-// }
-
-// https://api.twilio.com/2010-04-01/Accounts/AC81a8f25e2c7483fb967a4f191ba46498/Messages?To={{ticket.requester.phone}}&From=+12013409670
-
-// ?From=+12013409670&To={{ticket.requester.phone}}
-
-// https://api.twilio.com/2010-04-01/Accounts/AC81a8f25e2c7483fb967a4f191ba46498/Messages.json?From=%22+12013409670%22&To={{ticket.requester.phone}}&Body={{ticket.latest_public_comment_formatted}}
-
-// ?%22From=+12013409670%22&%22To={{ticket.requester.phone}}%22&%22Body={{ticket.latest_public_comment_formatted}}%22
-
-// https://api.twilio.com/2010-04-01/Accounts/AC81a8f25e2c7483fb967a4f191ba46498/Messages.json?Body=Hi+mom&To=%2B12016159570&From=%2B12013409670
 
 module.exports = router;
